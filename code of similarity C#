@@ -1,0 +1,850 @@
+
+namespace The_Similarity
+{
+    public partial class Form1 : Form
+    {
+
+        //============= public var
+        //var use in show docment
+          int num_of_line;
+        //var use in deletpancmark
+        string[] deletPM;
+
+        //==== var of function porter stemmer
+
+        // The passed in word turned into a char array. 
+        // Quicker to use to rebuilding strings each time a change is made.
+        private char[] wordArray;
+
+        // Current index to the end of the word in the character array. This will
+        // change as the end of the string gets modified.
+        private int endIndex;
+
+        // Index of the (potential) end of the stem word in the char array.
+        private int stemIndex;
+
+        //var use in weigth function 
+        double[][] weigth;
+        int num;
+        //==========================
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void Button2_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void Button1_Click(object sender, EventArgs e)
+        {
+            if (this.WindowState != FormWindowState.Minimized)
+            {
+                this.WindowState = FormWindowState.Minimized;
+            }
+
+        }
+
+        //==================btn read docment ===================
+        
+        public void readtextbox()
+        {
+            num_of_line = textBox1.Lines.Count();
+            string[] doc = new string[] { };
+
+            int line = 0;
+            int count = 0;
+            List<string> list = new List<string>();
+            while (line < num_of_line)
+            {
+                if (line != textBox1.Lines.Count() - 1)
+                {
+                    list.Add(textBox1.Lines[line] + " " + textBox1.Lines[line + 1]);
+                }
+                else
+                {
+                    list.Add(textBox1.Lines[line]);
+                }
+                count++;
+
+                line += 2;
+
+            }
+            File.WriteAllLines("1-AllDocment.txt", list);
+        }
+
+        private void Class1btn1_Click(object sender, EventArgs e)
+        {
+            readtextbox();
+            int cou = 1;
+            textBox1.Text = "";
+            string[] doc = File.ReadAllLines("1-AllDocment.txt");
+            foreach (string item in doc )
+            {
+                textBox1.Text += " {doc:" + cou + "} " + "[" + item + "] " + "\n" + "\r";
+                textBox1.Text += "\n" + "\r";
+                textBox1.Text += "\n" + "\r";
+
+                cou++;
+            }
+
+        }
+
+
+
+        //=============================== ===================
+
+        //============== preprossing ======================
+        //=========================== read =============
+        public static void WriterFunction(string[] Writdocument, string path)
+        {
+            StreamWriter filew = new StreamWriter(path);
+            string[] sc = new string[Writdocument.Length];
+            string Wdocument_trim;
+            for (int i = 0; i < Writdocument.Length; i++)
+            {
+                if (Writdocument[i] != null && Writdocument[i] != "")
+                {
+                    sc[i] = Writdocument[i];
+
+                    Wdocument_trim = sc[i].Trim();
+
+                    filew.WriteLine(Wdocument_trim);
+
+                }
+            }
+            filew.Close();
+        }
+        public static void Reader(ref string Rdocument, string path)
+        {
+            string line;
+            StreamReader filer = new StreamReader(path, Encoding.Default);
+            while ((line = filer.ReadLine()) != null)
+            {
+                Rdocument += line + " ";
+
+            }
+            filer.Close();
+
+
+        }
+          //===========================================================
+
+        //=====================  DeleteThePunctuationMarks =======
+        public void DeleteThePunctuationMarks()
+        {
+
+            deletPM = File.ReadAllLines("1-AllDocment.txt");
+
+
+            char[] Punctuation = {'“',';', ',', ':', '(', ')', '{', '}', '|', '/','\\', '=', '+', '-', '_', '*',
+                                  '$','‘',',','’','~','[',']','"','.','?','!','’','#','@','%','&','<','>','^','\''};
+
+            string result = string.Empty;
+            char[] ch1;
+            for (int i = 0; i < deletPM.Length; i++)
+            {
+                result = deletPM[i].ToString().ToLower();
+                ch1 = new char[result.Length];
+                ch1 = result.ToCharArray();
+                result = "";
+                for (int n = 0; n < ch1.Length; n++)
+                {
+                    for (int m = 0; m < Punctuation.Length; m++)
+                    {
+
+
+                        if (ch1[n] == Punctuation[m])
+                        {
+                            ch1[n] = ' ';
+
+                        }
+
+
+
+                    }
+                    
+
+                    result += ch1[n];
+                }
+                deletPM[i] = result.ToString();
+                result = "";
+
+            }
+
+
+            File.WriteAllLines("2_deletpunctuationMark.txt", deletPM);
+        }
+
+        //===================== deletTrimSpacesBetweenString  =======
+        public static string TrimSpacesBetweenString(string s)
+        {
+
+            var mystring = s.Split(new string[] { "", " " }, StringSplitOptions.None);
+            string result = string.Empty;
+            foreach (var mstr in mystring)
+            {
+                var ss = mstr.Trim();
+                if (!string.IsNullOrEmpty(ss))
+                {
+                    result = result + ss + " " + "".Trim();
+                }
+            }
+            return (result.Trim());
+
+        }
+        public void DeleteTrimSpacesBetweenString()
+        {
+            string[] deletTBS1;
+
+            DeleteThePunctuationMarks();
+            deletTBS1 = File.ReadAllLines("2_deletpunctuationMark.txt");
+            for (int i = 0; i < deletTBS1.Length; i++)
+            {
+                deletTBS1[i] = TrimSpacesBetweenString(deletTBS1[i]);
+            }
+
+
+            File.WriteAllLines("3_delet_trimspaces_B_string.txt", deletTBS1);
+        }
+
+        //===================== deletduplicatword ===========================
+        public void deletduplicatword()
+        {
+
+            List<string> list1 = new List<string>();
+            string[] SimilarWord1;
+            string result1 = string.Empty;
+
+            DeleteTrimSpacesBetweenString();
+
+
+            Reader(ref result1, "3_delet_trimspaces_B_string.txt");
+
+            SimilarWord1 = result1.Split(' ');
+            foreach (string word in SimilarWord1)
+            {
+                if (!list1.Contains(word))
+                    list1.Add(word);
+            }
+
+
+            File.WriteAllLines("4_delet duplicat word.txt", list1);
+        }
+
+        //===============   DeletStopWord    =========================
+        public void DeletStopWord()
+        {
+            string READstopword = string.Empty;
+
+            Reader(ref READstopword, "stopword1.txt");
+            char[] space = { ' ' };
+            string[] stopword1 = READstopword.Split(space, StringSplitOptions.None);
+
+            deletduplicatword();
+            string[] stopword2 = File.ReadAllLines("4_delet duplicat word.txt");
+
+
+            for (int i = 0; i < stopword1.Length; i++)
+            {
+                for (int h = 0; h < stopword2.Length; h++)
+
+                {
+                    if (stopword2[h] == stopword1[i])
+                    {
+                        stopword2[h] = "";
+
+                    }
+
+                }
+
+            }
+            WriterFunction(stopword2, "5_delet stopword.txt");
+
+        }
+
+        //=================   STEM WORD   ================================
+        public string StemWord(string word)
+        {
+
+            // Do nothing for empty strings or short words.
+            if (string.IsNullOrWhiteSpace(word) || word.Length <= 2) return word;
+
+            wordArray = word.ToCharArray();
+
+            stemIndex = 0;
+            endIndex = word.Length - 1;
+            Step1();
+            Step2();
+            Step3();
+            Step4();
+            Step5();
+            Step6();
+
+            var length = endIndex + 1;
+            return new String(wordArray, 0, length);
+        }
+        // Step1() gets rid of plurals and -ed or -ing.
+        /* Examples:
+      caresses  ->  caress
+      ponies    ->  poni
+      ties      ->  ti
+      caress    ->  caress
+      cats      ->  cat
+
+      feed      ->  feed
+      agreed    ->  agree
+      disabled  ->  disable
+
+      matting   ->  mat
+      mating    ->  mate
+      meeting   ->  meet
+      milling   ->  mill
+      messing   ->  mess
+
+      meetings  ->  meet  		*/
+        private void Step1()
+        {
+            // If the word ends with s take that off
+            if (wordArray[endIndex] == 's')
+            {
+                if (EndsWith("sses"))
+                {
+                    endIndex -= 2;
+                }
+                else if (EndsWith("ies"))
+                {
+                    SetEnd("i");
+                }
+                else if (wordArray[endIndex - 1] != 's')
+                {
+                    endIndex--;
+                }
+            }
+            if (EndsWith("eed"))
+            {
+                if (MeasureConsontantSequence() > 0)
+                    endIndex--;
+            }
+            else if ((EndsWith("ed") || EndsWith("ing")) && VowelInStem())
+            {
+                endIndex = stemIndex;
+                if (EndsWith("at"))
+                    SetEnd("ate");
+                else if (EndsWith("bl"))
+                    SetEnd("ble");
+                else if (EndsWith("iz"))
+                    SetEnd("ize");
+                else if (IsDoubleConsontant(endIndex))
+                {
+                    endIndex--;
+                    int ch = wordArray[endIndex];
+                    if (ch == 'l' || ch == 's' || ch == 'z')
+                        endIndex++;
+                }
+                else if (MeasureConsontantSequence() == 1 && IsCVC(endIndex)) SetEnd("e");
+            }
+        }
+        
+       
+        /* step5() takes off -ant, -ence etc., in context <c>vcvc<v>. */
+        private void Step5()
+        {
+            if (endIndex == 0) return;
+
+            switch (wordArray[endIndex - 1])
+            {
+                case 'a':
+                    if (EndsWith("al")) break; return;
+                case 'c':
+                    if (EndsWith("ance")) break;
+                    if (EndsWith("ence")) break; return;
+                case 'e':
+                    if (EndsWith("er")) break; return;
+                case 'i':
+                    if (EndsWith("ic")) break; return;
+                case 'l':
+                    if (EndsWith("able")) break;
+                    if (EndsWith("ible")) break; return;
+                case 'n':
+                    if (EndsWith("ant")) break;
+                    if (EndsWith("ement")) break;
+                    if (EndsWith("ment")) break;
+                    /* element etc. not stripped before the m */
+                    if (EndsWith("ent")) break; return;
+                case 'o':
+                    if (EndsWith("ion") && stemIndex >= 0 && (wordArray[stemIndex] == 's' || wordArray[stemIndex] == 't')) break;
+                    /* j >= 0 fixes Bug 2 */
+                    if (EndsWith("ou")) break; return;
+                /* takes care of -ous */
+                case 's':
+                    if (EndsWith("ism")) break; return;
+                case 't':
+                    if (EndsWith("ate")) break;
+                    if (EndsWith("iti")) break; return;
+                case 'u':
+                    if (EndsWith("ous")) break; return;
+                case 'v':
+                    if (EndsWith("ive")) break; return;
+                case 'z':
+                    if (EndsWith("ize")) break; return;
+                default:
+                    return;
+            }
+            if (MeasureConsontantSequence() > 1)
+                endIndex = stemIndex;
+        }
+
+        /* step6() removes a final -e if m() > 1. */
+        private void Step6()
+        {
+            stemIndex = endIndex;
+
+            if (wordArray[endIndex] == 'e')
+            {
+                var a = MeasureConsontantSequence();
+                if (a > 1 || a == 1 && !IsCVC(endIndex - 1))
+                    endIndex--;
+            }
+            if (wordArray[endIndex] == 'l' && IsDoubleConsontant(endIndex) && MeasureConsontantSequence() > 1)
+                endIndex--;
+        }
+
+        // Returns true if the character at the specified index is a consonant.
+        // With special handling for 'y'.
+        private bool IsConsonant(int index)
+        {
+            var c = wordArray[index];
+            if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') return false;
+            return c != 'y' || (index == 0 || !IsConsonant(index - 1));
+        }
+
+        /* m() measures the number of consonant sequences between 0 and j. if c is
+     a consonant sequence and v a vowel sequence, and <..> indicates arbitrary
+     presence,
+
+     <c><v>       gives 0
+     <c>vc<v>     gives 1
+     <c>vcvc<v>   gives 2
+     <c>vcvcvc<v> gives 3
+     ....		*/
+        private int MeasureConsontantSequence()
+        {
+            var n = 0;
+            var index = 0;
+            while (true)
+            {
+                if (index > stemIndex) return n;
+                if (!IsConsonant(index)) break; index++;
+            }
+            index++;
+            while (true)
+            {
+                while (true)
+                {
+                    if (index > stemIndex) return n;
+                    if (IsConsonant(index)) break;
+                    index++;
+                }
+                index++;
+                n++;
+                while (true)
+                {
+                    if (index > stemIndex) return n;
+                    if (!IsConsonant(index)) break;
+                    index++;
+                }
+                index++;
+            }
+        }
+
+        // Return true if there is a vowel in the current stem (0 ... stemIndex)
+        private bool VowelInStem()
+        {
+            int i;
+            for (i = 0; i <= stemIndex; i++)
+            {
+                if (!IsConsonant(i)) return true;
+            }
+            return false;
+        }
+
+        // Returns true if the char at the specified index and the one preceeding it are the same consonants.
+        private bool IsDoubleConsontant(int index)
+        {
+            if (index < 1) return false;
+            return wordArray[index] == wordArray[index - 1] && IsConsonant(index);
+        }
+
+        /* cvc(i) is true <=> i-2,i-1,i has the form consonant - vowel - consonant
+     and also if the second c is not w,x or y. this is used when trying to
+     restore an e at the end of a short word. e.g.
+
+     cav(e), lov(e), hop(e), crim(e), but
+     snow, box, tray.		*/
+        private bool IsCVC(int index)
+        {
+            if (index < 2 || !IsConsonant(index) || IsConsonant(index - 1) || !IsConsonant(index - 2)) return false;
+            var c = wordArray[index];
+            return c != 'w' && c != 'x' && c != 'y';
+        }
+
+        // Does the current word array end with the specified string.
+        private bool EndsWith(string s)
+        {
+            var length = s.Length;
+            var index = endIndex - length + 1;
+            if (index < 0) return false;
+
+            for (var i = 0; i < length; i++)
+            {
+                if (wordArray[index + i] != s[i]) return false;
+            }
+            stemIndex = endIndex - length;
+            return true;
+        }
+
+
+
+
+
+        // Set the end of the word to s.
+        // Starting at the current stem pointer and readjusting the end pointer.
+        private void SetEnd(string s)
+        {
+            var length = s.Length;
+            var index = stemIndex + 1;
+            for (var i = 0; i < length; i++)
+            {
+                wordArray[index + i] = s[i];
+            }
+            // Set the end pointer to the new end of the word.
+            endIndex = stemIndex + length;
+        }
+
+
+        // Conditionally replace the end of the word
+        private void ReplaceEnd(string s)
+        {
+            if (MeasureConsontantSequence() > 0) SetEnd(s);
+        }
+
+        //=======================end  StemWord ================
+
+        //================   porterstemer   ========================
+        public void porterstemer()
+        {
+            string[] posm = new string[] { };
+            string StemWord1 = string.Empty;
+            DeletStopWord();
+
+            posm = File.ReadAllLines("5_delet stopword.txt");
+            for (int i = 0; i < posm.Length; i++)
+            {
+                StemWord1 = StemWord(posm[i]);
+                posm[i] = "";
+
+                posm[i] = StemWord1;
+                StemWord1 = "";
+
+
+
+
+            }
+            File.WriteAllLines("6_porterstemer.txt", posm);
+        }
+        //===================== DeletSimilarWord_after_stremme ============================================
+        public void DeletSimilarWord_after_stremmer()
+        {
+
+            porterstemer();
+            List<string> list2 = new List<string>();
+            string[] delsim;
+            delsim = File.ReadAllLines("6_porterstemer.txt");
+            foreach (string word in delsim)
+            {
+                if (!list2.Contains(word))
+                    list2.Add(word);
+            }
+
+            File.WriteAllLines("7_DeletSimilarWord_after_stremmer.txt", list2);
+
+        }
+        //==================================================================
+
+        public void DeletStopWordandstemminginsentences()
+        {
+            string READstopword = string.Empty;
+
+            Reader(ref READstopword, "stopword1.txt");
+
+
+            char[] space = { ' ' };
+            string[] stopword2 = READstopword.Split(space, StringSplitOptions.None);
+
+            
+            string[] stopword3;
+            stopword3 = File.ReadAllLines("3_delet_trimspaces_B_string.txt");
+
+            for (int i = 0; i < stopword3.Length; i++)
+            {
+                string[] s = stopword3[i].Split(' ');
+                stopword3[i] = "";
+                for (int m = 0; m < s.Length; m++)
+                {
+                    for (int h = 0; h < stopword2.Length; h++)
+
+                    {
+                        if (s[m] == stopword2[h])
+                        {
+                            s[m] = "";
+
+                        }
+
+                    }
+
+                    stopword3[i] += " " + StemWord(s[m]);
+                }
+                stopword3[i] = TrimSpacesBetweenString(stopword3[i]);
+            }
+            File.WriteAllLines("8_delet stopword in docment.txt", stopword3);
+
+        }
+
+
+        private void Class1btn21_Click(object sender, EventArgs e)
+        {
+            string[] operater=new string[] { };
+
+            DeletSimilarWord_after_stremmer();
+            operater = File.ReadAllLines("7_DeletSimilarWord_after_stremmer.txt");
+
+            for (int i = 0; i < operater.Length; i++)
+            {
+                textBox2.Text +="{T"+(i+1)+"} "+ operater[i].ToString() + "\r" + "\n";
+            }
+
+
+            //=================doc after edit
+            string[] doc= new string[] { };
+
+            DeletStopWordandstemminginsentences();
+            doc = File.ReadAllLines("8_delet stopword in docment.txt");
+            int cou =1;
+            
+                textBox1.Visible=false;
+                textBox4.Visible = true;
+                for (int i = 0; i < doc.Length; i++)
+                {
+                    textBox4.Text += " {doc:" + cou.ToString() + "} " + "[" + doc[i].ToString() + "] " + "\n" + "\r";
+                    textBox4.Text += "\n" + "\r";
+                    textBox4.Text += "\n" + "\r";
+
+                    cou++;
+                }
+            
+
+        }
+
+        //==============end preprossing====================
+        //============={ Calculat The TFIDF }=====================
+
+        public int TF(string term, int numofdocment)
+        {
+            int count = 0;
+            string[] docment;
+            docment = File.ReadAllLines("8_delet stopword in docment.txt");
+
+
+            for (int i = numofdocment; i < docment.Length; i++)
+            {
+
+                string[] word = docment[i].Split(' ');
+                for (int j = 0; j < word.Length; j++)
+                {
+                    if (word[j] == term) { count++; }
+                }
+                break;
+            }
+            return count;
+
+        }
+        //=================================================================
+        public double IDF(string term)
+        {
+            int nu_of_docment = 0;
+            int count_of_trm_in_docment = 0;
+            string[] docment;
+            docment = File.ReadAllLines("8_delet stopword in docment.txt");
+
+            nu_of_docment = docment.Length;
+
+            for (int i = 0; i < docment.Length; i++)
+            {
+
+                string[] word = docment[i].Split(' ');
+                for (int j = 0; j < word.Length; j++)
+                {
+                    if (word[j] == term)
+                    {
+                        j = word.Length;
+                        count_of_trm_in_docment++;
+                    }
+                }
+            }
+            double IDF = (double)Math.Log(nu_of_docment / (double)count_of_trm_in_docment);
+            return IDF;
+
+        }
+
+
+        //================  weigth  ===========================
+
+        public void weigthvsm()
+        {
+
+
+            string[] docment;
+            string[] Term;
+
+            docment = File.ReadAllLines("8_delet stopword in docment.txt");
+
+
+            num = docment.Length;
+
+            Term = File.ReadAllLines("7_DeletSimilarWord_after_stremmer.txt");
+            weigth = new double[num][];
+
+            bool ter = false;
+
+            for (int i = 0; i < docment.Length; i++)
+            {
+                weigth[i] = new double[Term.Length];
+
+                string[] word = docment[i].Split(' ');
+
+                for (int j = 0; j < Term.Length; j++)
+                {
+                    for (int m = 0; m < word.Length; m++)
+                    {
+
+                        if (Term[j] == word[m])
+                        {
+                            ter = true;
+
+                        }
+                    }
+                    if (ter == true)
+                    {
+                        int Tf = TF(Term[j], i);
+                        double IDf = IDF(Term[j]);
+                        double TF_IDf = (float)Tf * IDf;
+                        weigth[i][j] =TF_IDf;
+                    }
+                    else weigth[i][j] = 0;
+                    ter = false;
+
+                }
+
+            }
+
+        }
+
+        private void Class1btn22_Click(object sender, EventArgs e)
+        {
+            
+                   weigthvsm();
+            textBox3.Text = "                                      WEIGTH OF ALL DOCMENT " + "\r" + "\n";
+            textBox3.Text += "\r" + "\n";
+
+            for (int i = 0; i < weigth.Length; i++)
+            {
+                textBox3.Text += "{ doc" + (i + 1) + " } =".ToString();
+                foreach (double col in weigth[i])
+                {
+                    textBox3.Text +=  "[ " + col.ToString() + " ] "+ "\n"+ "\n";
+                    
+                }
+                textBox3.Text += "\r" + "\n";
+                textBox3.Text += "\r" + "\n";
+                textBox3.Text += "\r" + "\n";
+            }
+            
+
+
+
+
+
+
+        }
+
+
+        //================{ End Calculat The TFIDF }======================
+
+        public static double dotproduct(double[] v1, double[] v2)
+        {
+            double product = 0.0;
+            if (v1.Length == v2.Length)
+            {
+                for (int i = 0; i < v1.Length; i++)
+                {
+                    product += v1[i] * v2[i];
+                }
+            }
+            return product;
+        }
+
+        public static double vectorlength(double[] vector)
+        {
+            double length = 0.0;
+            for (int i = 0; i < vector.Length; i++)
+            {
+                length += Math.Pow(vector[i], 2);
+            }
+
+            return Math.Sqrt(length);
+        }
+        public static double cosinetheta(double[] v1, double[] v2)
+        {
+            double lengthV1 = vectorlength(v1);
+            double lengthV2 = vectorlength(v2);
+
+            double dotprod = dotproduct(v1, v2);
+
+            return dotprod / (lengthV1 * lengthV2);
+
+        }
+        //===========================================================
+
+
+        private void Class1btn23_Click(object sender, EventArgs e)
+        {
+            //double s1 = cosinetheta(weigth[0], weigth[1]);
+            //textBox5.Text += "{doc1_doc2} :"+s1.ToString()+"\r"+"\n";
+            //double s2 = cosinetheta(weigth[0], weigth[2]);
+            //textBox5.Text += "{doc1_doc3} :"+ s2.ToString()+"\r" + "\n";
+            //double s3 = cosinetheta(weigth[0], weigth[3]);
+            //textBox5.Text += "{doc1_doc4} :"+ s3.ToString()+"\r" + "\n";
+            double s1;
+
+            for (int i = 1; i < weigth.Length; i++)
+            {
+                 s1 = cosinetheta(weigth[0], weigth[i]);
+                textBox5.Text += "{doc1_doc"+(i+1)+"} :" + s1.ToString() + "\r" + "\n";
+            }
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+    }
+}
